@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  yt-summarizer:
+    image: yt-summarizer
+    container_name: yt-summarizer
+    env_file:
+      - .env
+    volumes:
+      - ./processed_videos.txt:/data/processed_videos.txt
+    restart: unless-stopped

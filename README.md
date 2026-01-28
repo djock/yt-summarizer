@@ -23,14 +23,45 @@ Build the image:
 docker build -t yt-summarizer .
 ```
 
-Run with environment, persistent archive, and auto-restart on reboot:
+Run once with environment and persistent archive:
 
 ```bash
 docker run --rm \
   --env-file .env \
   -v "$PWD/processed_videos.txt:/data/processed_videos.txt" \
+  yt-summarizer
+```
+
+Run with auto-restart on reboot (no `--rm`):
+
+```bash
+docker run -d \
+  --name yt-summarizer \
+  --env-file .env \
+  -v "$PWD/processed_videos.txt:/data/processed_videos.txt" \
   --restart unless-stopped \
   yt-summarizer
+```
+
+## Run with Docker Compose
+
+Recommended for always-on runs with auto-restart.
+
+```bash
+docker build -t yt-summarizer .
+docker compose up -d
+```
+
+Logs:
+
+```bash
+docker compose logs -f
+```
+
+Stop:
+
+```bash
+docker compose down
 ```
 
 ## Run on a Schedule (cron)
