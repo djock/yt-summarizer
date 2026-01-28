@@ -37,6 +37,17 @@ def process_video(video_id):
     log(f"🚀 STARTING PROCESS: {url}")
     
     try:
+        # Fetch metadata for formatting
+        log("Fetching video metadata...")
+        meta_cmd = (
+            "yt-dlp --skip-download "
+            "--print '%(channel)s||%(title)s||%(duration_string)s' "
+            f"{url}"
+        )
+        channel_name, video_title, video_length = (
+            subprocess.check_output(meta_cmd, shell=True).decode().strip().split("||", 2)
+        )
+
         # 1. Download Audio + Timer
         log("Downloading audio via yt-dlp...")
         start_dw = time.time()
@@ -64,12 +75,21 @@ def process_video(video_id):
         log("Requesting summary from Gemini AI...")
         response = client.models.generate_content(
             model='gemini-2.5-flash-lite', 
-            contents=f"Summarize this YouTube transcript into a structured Discord message with a Bold Title (title of the video) - channel and Bullet Points:\n\n{transcript}"
+            contents=(
+                "Summarize this YouTube transcript into concise bullet points only. "
+                "Do not include any title or heading; the title is provided separately:\n\n"
+                f"{transcript}"
+            )
         )
         
         # 4. Prepare Final Message (Link wrapped in < > to hide thumbnail)
-        stats_footer = f"\n\n---\n**⏱️ Performance Logs:**\n- Download: {dw_time}s\n- Transcription: {ts_time}s"
-        full_message = f"**NEW SUMMARY: <{url}>**\n\n{response.text}{stats_footer}"
+        summary_lines = [
+            line for line in response.text.splitlines()
+            if line.strip().startswith(("-", "•", "*"))
+        ]
+        summary_text = "\n".join(summary_lines).strip() if summary_lines else response.text.strip()
+        stats_footer = f"\n*Processing {video_length} | download {dw_time} | transcription {ts_time}*"
+        full_message = f"**{channel_name} - {video_title}**\n{summary_text}\n{stats_footer}"
         
         send_discord(full_message)
         log(f"✅ Finished. DW: {dw_time}s, TS: {ts_time}s")
