@@ -27,6 +27,9 @@ def log(message):
     print(f"[LOG] {message}")
     sys.stdout.flush()
 
+def format_minutes(seconds):
+    return f"{round(seconds / 60, 2)}m"
+
 def send_discord(content):
     log("Sending summary to Discord...")
     # Discord 2000 character chunking
@@ -104,7 +107,11 @@ def summarize_and_send(video_id, url, channel_name, video_title, video_length, t
             if line.strip().startswith(("-", "•", "*"))
         ]
         summary_body = "\n".join(summary_lines).strip() if summary_lines else summary_text.strip()
-        stats_footer = f"\n*Processing {video_length} | download {dw_time} | transcription {ts_time}*"
+        stats_footer = (
+            f"\n*Processing {video_length} | "
+            f"download {format_minutes(float(dw_time))} | "
+            f"transcription {format_minutes(float(ts_time))}*"
+        )
         full_message = f"**{channel_name} - {video_title}**\n{summary_body}\n{stats_footer}"
         send_discord(full_message)
         log("✅ Summary sent to Discord.")
