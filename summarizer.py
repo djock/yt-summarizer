@@ -14,12 +14,15 @@ def require_env(name):
 
 WEBHOOK_URL = require_env("DISCORD_WEBHOOK_URL")
 GEMINI_API_KEY = require_env("GEMINI_API_KEY")
-CHANNELS = ["@sam_sulek", "@TeamRICHEY"] 
+CHANNELS = ["@sam_sulek", "@TeamRICHEY", "@NicksStrengthandPower"] 
 ARCHIVE_FILE = "/data/processed_videos.txt"
 PENDING_FILE = "/data/pending_summaries.txt"
 TRANSCRIPTS_DIR = "/data/transcripts"
 WHISPER_BIN = "./whisper-cli" 
 WHISPER_MODEL = "models/ggml-small.bin"
+DISCORD_CHAR_LIMIT = 2000
+DISCORD_CHUNK_SIZE = 1900
+SUMMARY_BULLET_LIMIT = 8
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -33,7 +36,7 @@ def format_minutes(seconds):
 def send_discord(content):
     log("Sending summary to Discord...")
     # Discord 2000 character chunking
-    chunks = [content[i:i + 1900] for i in range(0, len(content), 1900)]
+    chunks = [content[i:i + DISCORD_CHUNK_SIZE] for i in range(0, len(content), DISCORD_CHUNK_SIZE)]
     for chunk in chunks:
         requests.post(WEBHOOK_URL, json={"content": chunk})
 
@@ -74,7 +77,7 @@ def upsert_pending_entry(entry):
     entries.append(entry)
     write_pending_entries(entries)
 
-def generate_summary_with_retry(transcript, max_attempts=5, delays=(10, 30, 60, 120)):
+def generate_summary_with_retry(transcript, max_chars, max_attempts=5, delays=(10, 30, 60, 120)):
     attempts = 0
     while True:
         attempts += 1
@@ -83,6 +86,7 @@ def generate_summary_with_retry(transcript, max_attempts=5, delays=(10, 30, 60, 
                 model='gemini-2.5-flash-lite', 
                 contents=(
                     "Summarize this YouTube transcript into concise bullet points only. "
+                    f"Use at most {SUMMARY_BULLET_LIMIT} bullets and keep the summary under {max_chars} characters. "
                     "Do not include any title or heading; the title is provided separately:\n\n"
                     f"{transcript}"
                 )
@@ -101,18 +105,24 @@ def generate_summary_with_retry(transcript, max_attempts=5, delays=(10, 30, 60, 
 
 def summarize_and_send(video_id, url, channel_name, video_title, video_length, transcript, dw_time, ts_time):
     try:
-        summary_text = generate_summary_with_retry(transcript)
-        summary_lines = [
-            line for line in summary_text.splitlines()
-            if line.strip().startswith(("-", "•", "*"))
-        ]
-        summary_body = "\n".join(summary_lines).strip() if summary_lines else summary_text.strip()
+        title_line = f"**{channel_name} - {video_title}**"
         stats_footer = (
             f"\n*Processing {video_length} | "
             f"download {format_minutes(float(dw_time))} | "
             f"transcription {format_minutes(float(ts_time))}*"
         )
-        full_message = f"**{channel_name} - {video_title}**\n{summary_body}\n{stats_footer}"
+        reserved_chars = len(title_line) + 2 + len(stats_footer)
+        max_summary_chars = max(DISCORD_CHUNK_SIZE - reserved_chars, 200)
+        summary_text = generate_summary_with_retry(transcript, max_summary_chars)
+        summary_lines = [
+            line for line in summary_text.splitlines()
+            if line.strip().startswith(("-", "•", "*"))
+        ]
+        summary_body = "\n".join(summary_lines).strip() if summary_lines else summary_text.strip()
+        if len(summary_body) > max_summary_chars:
+            cutoff = max(max_summary_chars - 3, 0)
+            summary_body = summary_body[:cutoff].rstrip() + ("..." if cutoff > 0 else "")
+        full_message = f"{title_line}\n{summary_body}\n{stats_footer}"
         send_discord(full_message)
         log("✅ Summary sent to Discord.")
         return True, None
