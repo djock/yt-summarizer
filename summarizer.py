@@ -170,7 +170,9 @@ def process_pending_summaries():
 def process_video(video_id):
     url = f"https://www.youtube.com/watch?v={video_id}"
     log(f"🚀 STARTING PROCESS: {url}")
-    
+    last_yt_dlp_stdout = None
+    last_yt_dlp_stderr = None
+
     try:
         # Fetch metadata for formatting
         log("Fetching video metadata...")
@@ -179,9 +181,14 @@ def process_video(video_id):
             "--print '%(channel)s||%(title)s||%(duration_string)s' "
             f"{url}"
         )
-        channel_name, video_title, video_length = (
-            subprocess.check_output(meta_cmd, shell=True).decode().strip().split("||", 2)
+        meta_result = subprocess.run(
+            meta_cmd,
+            shell=True,
+            check=True,
+            capture_output=True,
+            text=True,
         )
+        channel_name, video_title, video_length = meta_result.stdout.strip().split("||", 2)
 
         # 1. Download Audio + Timer
         log("Downloading audio via yt-dlp...")
@@ -198,9 +205,23 @@ def process_video(video_id):
         while True:
             dl_attempts += 1
             try:
-                subprocess.run(dl_cmd, shell=True, check=True)
+                result = subprocess.run(
+                    dl_cmd,
+                    shell=True,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                last_yt_dlp_stdout = result.stdout or None
+                last_yt_dlp_stderr = result.stderr or None
                 break
             except subprocess.CalledProcessError as e:
+                if e.stdout:
+                    log(f"yt-dlp stdout:\n{e.stdout}")
+                    last_yt_dlp_stdout = e.stdout
+                if e.stderr:
+                    log(f"yt-dlp stderr:\n{e.stderr}")
+                    last_yt_dlp_stderr = e.stderr
                 if dl_attempts >= 3:
                     raise e
                 delay = 10 * dl_attempts
@@ -241,6 +262,13 @@ def process_video(video_id):
 
     except Exception as e:
         error_msg = f"❌ Error processing {video_id}: {str(e)}"
+        if last_yt_dlp_stderr or last_yt_dlp_stdout:
+            details = []
+            if last_yt_dlp_stderr:
+                details.append(f"yt-dlp stderr:\n{last_yt_dlp_stderr.strip()}")
+            if last_yt_dlp_stdout:
+                details.append(f"yt-dlp stdout:\n{last_yt_dlp_stdout.strip()}")
+            error_msg = f"{error_msg}\n\n" + "\n\n".join(details)
         log(error_msg)
         send_discord(error_msg)
         return False
