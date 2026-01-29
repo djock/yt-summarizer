@@ -235,13 +235,15 @@ def process_video(video_id):
                 transcript_path,
                 "1",
             ])
-            return
+            return False
         log(f"✅ Finished. DW: {dw_time}s, TS: {ts_time}s")
+        return True
 
     except Exception as e:
         error_msg = f"❌ Error processing {video_id}: {str(e)}"
         log(error_msg)
         send_discord(error_msg)
+        return False
     finally:
         log("Cleaning up temporary files...")
         if os.path.exists("tmp.wav"): os.remove("tmp.wav")
@@ -262,9 +264,12 @@ if __name__ == "__main__":
             latest_id = subprocess.check_output(cmd, shell=True).decode().strip()
             
             if latest_id not in processed:
-                process_video(latest_id)
-                with open(ARCHIVE_FILE, "a") as f:
-                    f.write(latest_id + "\n")
+                processed_ok = process_video(latest_id)
+                if processed_ok:
+                    with open(ARCHIVE_FILE, "a") as f:
+                        f.write(latest_id + "\n")
+                else:
+                    log(f"Not adding {latest_id} to archive because processing failed.")
             else:
                 log(f"Video {latest_id} is already in the archive. Skipping.")
         except Exception as e:
