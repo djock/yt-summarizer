@@ -77,19 +77,30 @@ def upsert_pending_entry(entry):
     entries.append(entry)
     write_pending_entries(entries)
 
-def generate_summary_with_retry(transcript, max_chars, max_attempts=5, delays=(10, 30, 60, 120)):
+def generate_summary_with_retry(transcript, max_chars, channel_name, max_attempts=5, delays=(10, 30, 60, 120)):
     attempts = 0
+    is_sam_sulek = channel_name.strip().lower() == "sam sulek"
+    if is_sam_sulek:
+        prompt = (
+            "Summarize this YouTube transcript into concise bullet points only. "
+            f"Use at most {SUMMARY_BULLET_LIMIT} bullets and keep the summary under {max_chars} characters. "
+            "Do not include any title or heading; the title is provided separately. "
+            "Always include a bullet list of exercises performed, with sets and kilograms if available:\n\n"
+            f"{transcript}"
+        )
+    else:
+        prompt = (
+            "Summarize this YouTube transcript into concise bullet points only. "
+            f"Use at most {SUMMARY_BULLET_LIMIT} bullets and keep the summary under {max_chars} characters. "
+            "Do not include any title or heading; the title is provided separately:\n\n"
+            f"{transcript}"
+        )
     while True:
         attempts += 1
         try:
             response = client.models.generate_content(
                 model='gemini-2.5-flash-lite', 
-                contents=(
-                    "Summarize this YouTube transcript into concise bullet points only. "
-                    f"Use at most {SUMMARY_BULLET_LIMIT} bullets and keep the summary under {max_chars} characters. "
-                    "Do not include any title or heading; the title is provided separately:\n\n"
-                    f"{transcript}"
-                )
+                contents=prompt
             )
             return response.text
         except Exception as e:
@@ -113,7 +124,7 @@ def summarize_and_send(video_id, url, channel_name, video_title, video_length, t
         )
         reserved_chars = len(title_line) + 2 + len(stats_footer)
         max_summary_chars = max(DISCORD_CHUNK_SIZE - reserved_chars, 200)
-        summary_text = generate_summary_with_retry(transcript, max_summary_chars)
+        summary_text = generate_summary_with_retry(transcript, max_summary_chars, channel_name)
         summary_lines = [
             line for line in summary_text.splitlines()
             if line.strip().startswith(("-", "•", "*"))
@@ -172,12 +183,14 @@ def process_video(video_id):
     log(f"🚀 STARTING PROCESS: {url}")
     last_yt_dlp_stdout = None
     last_yt_dlp_stderr = None
+    yt_dlp_base_args = "--js-runtimes node"
+    yt_dlp_youtube_args = "--extractor-args \"youtube:player_client=android\" --no-playlist"
 
     try:
         # Fetch metadata for formatting
         log("Fetching video metadata...")
         meta_cmd = (
-            "yt-dlp --skip-download "
+            f"yt-dlp {yt_dlp_base_args} {yt_dlp_youtube_args} --skip-download "
             "--print '%(channel)s||%(title)s||%(duration_string)s' "
             f"{url}"
         )
@@ -196,7 +209,9 @@ def process_video(video_id):
         
         # User-Agent added to bypass 403 Forbidden errors
         dl_cmd = (
-            f"yt-dlp -x --audio-format wav "
+            f"yt-dlp {yt_dlp_base_args} {yt_dlp_youtube_args} "
+            f"-f 'bestaudio[ext=webm]/bestaudio/best' "
+            f"-x --audio-format wav "
             f"--user-agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' "
             f"--postprocessor-args 'ffmpeg:-ar 16000 -ac 1' "
             f"-o 'tmp.wav' {url}"
@@ -288,7 +303,11 @@ if __name__ == "__main__":
     for channel in CHANNELS:
         try:
             log(f"Checking channel: {channel}")
-            cmd = f"yt-dlp --get-id --playlist-items 1 https://www.youtube.com/{channel}/videos"
+            cmd = (
+                "yt-dlp --js-runtimes node --extractor-args \"youtube:player_client=android\" "
+                "--get-id --playlist-items 1 "
+                f"https://www.youtube.com/{channel}/videos"
+            )
             latest_id = subprocess.check_output(cmd, shell=True).decode().strip()
             
             if latest_id not in processed:

@@ -65,10 +65,10 @@ docker compose down
 ```
 
 ## Run on a Schedule (cron)
-To run daily at 10:00 EEST on the Raspberry Pi host, add a cron entry that launches the container:
+To run daily at 08:00 EEST on the Raspberry Pi host, add a cron entry that launches the container:
 
 ```cron
-0 10 * * * TZ=Europe/Helsinki docker run --rm --env-file /path/to/.env -v /path/to/processed_videos.txt:/data/processed_videos.txt yt-summarizer
+0 8 * * * TZ=Europe/Helsinki docker run --rm --env-file /path/to/.env -v /path/to/processed_videos.txt:/data/processed_videos.txt yt-summarizer
 ```
 
 This keeps scheduling on the host and avoids bundling cron inside the container.
