@@ -7,5 +7,5 @@ services:
     env_file:
       - .env
     volumes:
-      - ./processed_videos.txt:/data/processed_videos.txt
+      - ./data:/data
     restart: unless-stopped

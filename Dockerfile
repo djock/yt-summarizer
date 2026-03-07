@@ -1,20 +1,31 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS builder
+
+ARG WHISPER_CPP_REF=master
 
 RUN apt-get update && apt-get install -y \
-    ffmpeg build-essential cmake git curl nodejs \
+    build-essential cmake git curl \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-RUN git clone https://github.com/ggerganov/whisper.cpp . && \
+WORKDIR /build
+RUN git clone --depth 1 --branch ${WHISPER_CPP_REF} https://github.com/ggerganov/whisper.cpp . && \
     cmake -B build && \
     cmake --build build -j --config Release && \
     cp build/bin/whisper-cli . && \
     sh ./models/download-ggml-model.sh small
 
-# Force upgrade yt-dlp to latest
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y \
+    ffmpeg curl nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY --from=builder /build/whisper-cli /app/whisper-cli
+COPY --from=builder /build/models/ggml-small.bin /app/models/ggml-small.bin
+
 RUN pip install -U yt-dlp google-genai requests
 
-COPY summarizer.py .
-RUN mkdir /data 
+COPY *.py /app/
+RUN mkdir -p /data /app/models
 
 CMD ["python", "summarizer.py"]
