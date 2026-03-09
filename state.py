@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import tempfile
+import types
 from contextlib import contextmanager
 from typing import Iterable, List
 
@@ -9,6 +10,7 @@ from models import Job, PendingEntry
 
 logger = logging.getLogger(__name__)
 
+fcntl: types.ModuleType | None
 try:
     import fcntl
 except ImportError:  # pragma: no cover - non-Unix platforms (e.g. Windows)

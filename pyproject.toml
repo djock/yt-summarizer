@@ -15,6 +15,7 @@ dev = [
     "pytest==8.3.5",
     "pytest-mock==3.14.0",
     "requests-mock==1.12.1",
+    "types-requests==2.32.0.20250328",
     "ruff>=0.4",
     "mypy>=1.10",
 ]
@@ -32,4 +33,8 @@ ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["requests", "requests.*", "google.*"]
 ignore_missing_imports = true

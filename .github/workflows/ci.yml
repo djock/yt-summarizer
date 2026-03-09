@@ -47,4 +47,4 @@ jobs:
         run: ruff check .
 
       - name: mypy (type check)
-        run: mypy --ignore-missing-imports --python-version 3.11 *.py
+        run: mypy --config-file pyproject.toml *.py

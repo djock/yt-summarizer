@@ -1,6 +1,8 @@
 import time
 from dataclasses import dataclass
-from typing import Callable, Iterable
+from typing import Callable, Iterable, TypeVar
+
+T = TypeVar("T")
 
 
 @dataclass
@@ -13,7 +15,7 @@ class RetryError(RuntimeError):
     pass
 
 
-def run_with_retry(fn: Callable[[], object], policy: RetryPolicy, should_retry: Callable[[Exception], bool]) -> object:
+def run_with_retry(fn: Callable[[], T], policy: RetryPolicy, should_retry: Callable[[Exception], bool]) -> T:
     attempts = 0
     last_exc: Exception | None = None
     for delay in list(policy.delays_s) + [0]:

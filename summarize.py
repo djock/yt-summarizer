@@ -82,13 +82,14 @@ class SummaryProviderWrapper:
 
 
 def build_provider(config: Config) -> SummaryProviderWrapper:
+    inner: SummaryProvider
     if config.summary_provider == "gemini":
-        provider = GeminiProvider(config.gemini_api_key, config.gemini_model)
+        inner = GeminiProvider(config.gemini_api_key or "", config.gemini_model)
     elif config.summary_provider == "openai":
-        provider = OpenAIProvider(config.openai_api_key, config.openai_model)
+        inner = OpenAIProvider(config.openai_api_key or "", config.openai_model)
     else:
         raise RuntimeError(f"Unsupported SUMMARY_PROVIDER: {config.summary_provider}")
-    return SummaryProviderWrapper(provider, config.summary_retry_policy())
+    return SummaryProviderWrapper(inner, config.summary_retry_policy())
 
 
 def _build_prompt(transcript: str, max_chars: int, channel_name: str, bullet_limit: int) -> str:

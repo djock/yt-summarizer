@@ -28,5 +28,5 @@ def run_command(args: List[str], timeout_s: int) -> CommandResult:
     except subprocess.TimeoutExpired as exc:
         raise CommandError(f"command timed out after {timeout_s}s: {' '.join(args)}") from exc
     except subprocess.CalledProcessError as exc:
-        result = CommandResult(stdout=exc.stdout or "", stderr=exc.stderr or "")
-        raise CommandError(f"command failed: {' '.join(args)}", result=result) from exc
+        cmd_result = CommandResult(stdout=exc.stdout or "", stderr=exc.stderr or "")
+        raise CommandError(f"command failed: {' '.join(args)}", result=cmd_result) from exc
