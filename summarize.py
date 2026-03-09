@@ -61,9 +61,9 @@ class OpenAIProvider(SummaryProvider):
 
 
 class SummaryProviderWrapper:
-    def __init__(self, provider: SummaryProvider):
+    def __init__(self, provider: SummaryProvider, policy: RetryPolicy | None = None):
         self.provider = provider
-        self.retry_policy = RetryPolicy(max_attempts=5, delays_s=[10, 30, 60, 120])
+        self.retry_policy = policy or RetryPolicy(max_attempts=5, delays_s=[10, 30, 60, 120])
 
     def _should_retry(self, exc: Exception) -> bool:
         msg = str(exc).lower()
@@ -88,7 +88,7 @@ def build_provider(config: Config) -> SummaryProviderWrapper:
         provider = OpenAIProvider(config.openai_api_key, config.openai_model)
     else:
         raise RuntimeError(f"Unsupported SUMMARY_PROVIDER: {config.summary_provider}")
-    return SummaryProviderWrapper(provider)
+    return SummaryProviderWrapper(provider, config.summary_retry_policy())
 
 
 def _build_prompt(transcript: str, max_chars: int, channel_name: str, bullet_limit: int) -> str:

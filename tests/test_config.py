@@ -5,7 +5,8 @@ import pytest
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from config import Config, _split_csv, parse_args
+from config import Config, _split_csv, _split_ints, parse_args
+from retry import RetryPolicy
 
 
 def _empty_args(**kwargs) -> argparse.Namespace:
@@ -147,3 +148,175 @@ class TestConfigFromEnv:
         cfg = Config.from_env(_empty_args())
         assert cfg.discord_char_limit == 2000
         assert cfg.discord_chunk_size == 1900
+
+    def test_log_level_default(self, monkeypatch):
+        monkeypatch.delenv("LOG_LEVEL", raising=False)
+        cfg = Config.from_env(_empty_args())
+        assert cfg.log_level == "INFO"
+
+    def test_log_level_from_env(self, monkeypatch):
+        monkeypatch.setenv("LOG_LEVEL", "DEBUG")
+        cfg = Config.from_env(_empty_args())
+        assert cfg.log_level == "DEBUG"
+
+    def test_retry_policy_defaults(self, monkeypatch):
+        for key in ("DOWNLOAD_MAX_RETRIES", "DOWNLOAD_RETRY_DELAYS",
+                    "SUMMARY_MAX_RETRIES", "SUMMARY_RETRY_DELAYS",
+                    "DISCORD_MAX_RETRIES", "DISCORD_RETRY_DELAYS", "PENDING_MAX_RETRIES"):
+            monkeypatch.delenv(key, raising=False)
+        cfg = Config.from_env(_empty_args())
+        assert cfg.download_max_retries == 3
+        assert cfg.download_retry_delays == [10, 20]
+        assert cfg.summary_max_retries == 5
+        assert cfg.summary_retry_delays == [10, 30, 60, 120]
+        assert cfg.discord_max_retries == 5
+        assert cfg.discord_retry_delays == [2, 5, 10, 20]
+        assert cfg.pending_max_retries == 5
+
+    def test_retry_policy_from_env(self, monkeypatch):
+        monkeypatch.setenv("DOWNLOAD_MAX_RETRIES", "2")
+        monkeypatch.setenv("DOWNLOAD_RETRY_DELAYS", "5,15")
+        cfg = Config.from_env(_empty_args())
+        assert cfg.download_max_retries == 2
+        assert cfg.download_retry_delays == [5, 15]
+
+
+class TestSplitInts:
+    def test_basic(self):
+        assert _split_ints("1,2,3") == [1, 2, 3]
+
+    def test_strips_whitespace(self):
+        assert _split_ints("1, 2, 3") == [1, 2, 3]
+
+    def test_skips_empty(self):
+        assert _split_ints("1,,3") == [1, 3]
+
+    def test_single(self):
+        assert _split_ints("10") == [10]
+
+    def test_empty_string(self):
+        assert _split_ints("") == []
+
+
+class TestRetryPolicies:
+    def _make_cfg(self, **overrides):
+        base = dict(
+            webhook_url="https://example.com/hook",
+            summary_provider="gemini",
+            gemini_api_key="key",
+            gemini_model="m",
+            openai_api_key=None,
+            openai_model="m",
+            channels=["@test"],
+            data_dir="/data",
+            archive_file="/data/a.txt",
+            pending_file="/data/p.txt",
+            transcripts_dir="/data/t",
+            temp_dir="/data/tmp",
+            whisper_bin="./w",
+            whisper_model="m.bin",
+            discord_char_limit=2000,
+            discord_chunk_size=1900,
+            summary_bullet_limit=8,
+            yt_dlp_timeout_s=600,
+            whisper_timeout_s=1800,
+            http_timeout_s=60,
+            log_level="INFO",
+            download_max_retries=3,
+            download_retry_delays=[10, 20],
+            summary_max_retries=5,
+            summary_retry_delays=[10, 30, 60, 120],
+            discord_max_retries=5,
+            discord_retry_delays=[2, 5, 10, 20],
+            pending_max_retries=5,
+        )
+        base.update(overrides)
+        return Config(**base)
+
+    def test_download_retry_policy(self):
+        cfg = self._make_cfg(download_max_retries=2, download_retry_delays=[5, 15])
+        policy = cfg.download_retry_policy()
+        assert isinstance(policy, RetryPolicy)
+        assert policy.max_attempts == 2
+        assert list(policy.delays_s) == [5, 15]
+
+    def test_summary_retry_policy(self):
+        cfg = self._make_cfg(summary_max_retries=3, summary_retry_delays=[1, 2, 4])
+        policy = cfg.summary_retry_policy()
+        assert policy.max_attempts == 3
+        assert list(policy.delays_s) == [1, 2, 4]
+
+    def test_discord_retry_policy(self):
+        cfg = self._make_cfg(discord_max_retries=4, discord_retry_delays=[1, 2, 3])
+        policy = cfg.discord_retry_policy()
+        assert policy.max_attempts == 4
+        assert list(policy.delays_s) == [1, 2, 3]
+
+
+class TestConfigValidate:
+    def _make_cfg(self, **overrides):
+        base = dict(
+            webhook_url="https://example.com/hook",
+            summary_provider="gemini",
+            gemini_api_key="key123",
+            gemini_model="m",
+            openai_api_key=None,
+            openai_model="m",
+            channels=["@test"],
+            data_dir="/data",
+            archive_file="/data/a.txt",
+            pending_file="/data/p.txt",
+            transcripts_dir="/data/t",
+            temp_dir="/data/tmp",
+            whisper_bin="./w",
+            whisper_model="m.bin",
+            discord_char_limit=2000,
+            discord_chunk_size=1900,
+            summary_bullet_limit=8,
+            yt_dlp_timeout_s=600,
+            whisper_timeout_s=1800,
+            http_timeout_s=60,
+            log_level="INFO",
+            download_max_retries=3,
+            download_retry_delays=[10, 20],
+            summary_max_retries=5,
+            summary_retry_delays=[10, 30, 60, 120],
+            discord_max_retries=5,
+            discord_retry_delays=[2, 5, 10, 20],
+            pending_max_retries=5,
+        )
+        base.update(overrides)
+        return Config(**base)
+
+    def test_valid_config_passes(self):
+        self._make_cfg().validate()  # should not raise
+
+    def test_missing_webhook_raises(self):
+        with pytest.raises(RuntimeError, match="DISCORD_WEBHOOK_URL"):
+            self._make_cfg(webhook_url="").validate()
+
+    def test_missing_gemini_key_raises(self):
+        with pytest.raises(RuntimeError, match="GEMINI_API_KEY"):
+            self._make_cfg(gemini_api_key=None).validate()
+
+    def test_missing_openai_key_raises(self):
+        with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+            self._make_cfg(summary_provider="openai", openai_api_key=None).validate()
+
+    def test_invalid_provider_raises(self):
+        with pytest.raises(RuntimeError, match="SUMMARY_PROVIDER"):
+            self._make_cfg(summary_provider="unknown").validate()
+
+    def test_empty_channels_raises(self):
+        with pytest.raises(RuntimeError, match="CHANNELS"):
+            self._make_cfg(channels=[]).validate()
+
+    def test_multiple_errors_reported_together(self):
+        with pytest.raises(RuntimeError) as exc_info:
+            self._make_cfg(webhook_url="", channels=[]).validate()
+        msg = str(exc_info.value)
+        assert "DISCORD_WEBHOOK_URL" in msg
+        assert "CHANNELS" in msg
+
+    def test_valid_openai_config_passes(self):
+        self._make_cfg(summary_provider="openai", openai_api_key="sk-test").validate()

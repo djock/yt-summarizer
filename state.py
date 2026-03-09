@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import tempfile
 from contextlib import contextmanager
@@ -6,10 +7,16 @@ from typing import Iterable, List
 
 from models import Job, PendingEntry
 
+logger = logging.getLogger(__name__)
+
 try:
     import fcntl
-except Exception:  # pragma: no cover - Windows fallback
+except ImportError:  # pragma: no cover - non-Unix platforms (e.g. Windows)
     fcntl = None
+    logger.warning(
+        "fcntl is not available on this platform; file locking is disabled. "
+        "Running multiple instances concurrently may cause data corruption."
+    )
 
 
 @contextmanager

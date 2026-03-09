@@ -1,10 +1,15 @@
+import logging
 import time
 import requests
 
 from retry import RetryPolicy, run_with_retry
 
+logger = logging.getLogger(__name__)
 
-def send_discord(webhook_url: str, content: str, chunk_size: int, timeout_s: int) -> None:
+_DEFAULT_POLICY = RetryPolicy(max_attempts=5, delays_s=[2, 5, 10, 20])
+
+
+def send_discord(webhook_url: str, content: str, chunk_size: int, timeout_s: int, policy: RetryPolicy | None = None) -> None:
     chunks = [content[i:i + chunk_size] for i in range(0, len(content), chunk_size)]
 
     def should_retry(exc: Exception) -> bool:
@@ -15,7 +20,7 @@ def send_discord(webhook_url: str, content: str, chunk_size: int, timeout_s: int
             return True
         return False
 
-    policy = RetryPolicy(max_attempts=5, delays_s=[2, 5, 10, 20])
+    policy = policy or _DEFAULT_POLICY
 
     for chunk in chunks:
         def send_chunk() -> None:

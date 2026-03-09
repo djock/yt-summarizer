@@ -3,9 +3,15 @@ import os
 from dataclasses import dataclass
 from typing import List
 
+from retry import RetryPolicy
+
 
 def _split_csv(value: str) -> List[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+def _split_ints(value: str) -> List[int]:
+    return [int(item.strip()) for item in value.split(",") if item.strip()]
 
 
 @dataclass
@@ -30,6 +36,38 @@ class Config:
     yt_dlp_timeout_s: int
     whisper_timeout_s: int
     http_timeout_s: int
+    log_level: str
+    download_max_retries: int
+    download_retry_delays: List[int]
+    summary_max_retries: int
+    summary_retry_delays: List[int]
+    discord_max_retries: int
+    discord_retry_delays: List[int]
+    pending_max_retries: int
+
+    def download_retry_policy(self) -> RetryPolicy:
+        return RetryPolicy(max_attempts=self.download_max_retries, delays_s=self.download_retry_delays)
+
+    def summary_retry_policy(self) -> RetryPolicy:
+        return RetryPolicy(max_attempts=self.summary_max_retries, delays_s=self.summary_retry_delays)
+
+    def discord_retry_policy(self) -> RetryPolicy:
+        return RetryPolicy(max_attempts=self.discord_max_retries, delays_s=self.discord_retry_delays)
+
+    def validate(self) -> None:
+        errors = []
+        if not self.webhook_url:
+            errors.append("DISCORD_WEBHOOK_URL is required")
+        if self.summary_provider not in ("gemini", "openai"):
+            errors.append(f"SUMMARY_PROVIDER must be 'gemini' or 'openai', got: {self.summary_provider!r}")
+        elif self.summary_provider == "gemini" and not self.gemini_api_key:
+            errors.append("GEMINI_API_KEY is required when SUMMARY_PROVIDER=gemini")
+        elif self.summary_provider == "openai" and not self.openai_api_key:
+            errors.append("OPENAI_API_KEY is required when SUMMARY_PROVIDER=openai")
+        if not self.channels:
+            errors.append("CHANNELS must be set to at least one channel handle (e.g. CHANNELS=@MyChannel)")
+        if errors:
+            raise RuntimeError("Configuration errors:\n" + "\n".join(f"  - {e}" for e in errors))
 
     @staticmethod
     def from_env(args: argparse.Namespace) -> "Config":
@@ -63,6 +101,14 @@ class Config:
             yt_dlp_timeout_s=int(os.getenv("YT_DLP_TIMEOUT_S", "600")),
             whisper_timeout_s=int(os.getenv("WHISPER_TIMEOUT_S", "1800")),
             http_timeout_s=int(os.getenv("HTTP_TIMEOUT_S", "60")),
+            log_level=os.getenv("LOG_LEVEL", "INFO"),
+            download_max_retries=int(os.getenv("DOWNLOAD_MAX_RETRIES", "3")),
+            download_retry_delays=_split_ints(os.getenv("DOWNLOAD_RETRY_DELAYS", "10,20")),
+            summary_max_retries=int(os.getenv("SUMMARY_MAX_RETRIES", "5")),
+            summary_retry_delays=_split_ints(os.getenv("SUMMARY_RETRY_DELAYS", "10,30,60,120")),
+            discord_max_retries=int(os.getenv("DISCORD_MAX_RETRIES", "5")),
+            discord_retry_delays=_split_ints(os.getenv("DISCORD_RETRY_DELAYS", "2,5,10,20")),
+            pending_max_retries=int(os.getenv("PENDING_MAX_RETRIES", "5")),
         )
 
 

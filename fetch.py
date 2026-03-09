@@ -1,12 +1,27 @@
+import logging
 import os
+import re
 from typing import Tuple
 
 from config import Config
 from models import Job
 from subprocess_utils import CommandError, run_command
 
+logger = logging.getLogger(__name__)
+
+_CHANNEL_RE = re.compile(r'^@[\w.-]+$')
+
+
+def validate_channel_handle(channel: str) -> None:
+    if not _CHANNEL_RE.match(channel):
+        raise ValueError(
+            f"Invalid channel handle: {channel!r}. "
+            "Expected format: @handle (e.g. @MyChannel)"
+        )
+
 
 def get_latest_video_id(channel: str, timeout_s: int) -> str:
+    validate_channel_handle(channel)
     args = [
         "yt-dlp",
         "--js-runtimes",
