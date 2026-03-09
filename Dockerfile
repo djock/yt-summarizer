@@ -23,7 +23,8 @@ WORKDIR /app
 COPY --from=builder /build/whisper-cli /app/whisper-cli
 COPY --from=builder /build/models/ggml-small.bin /app/models/ggml-small.bin
 
-RUN pip install -U yt-dlp google-genai requests
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY *.py /app/
 RUN mkdir -p /data /app/models

@@ -1,4 +1,9 @@
 .env
 __pycache__/
 *.pyc
+*.pyo
 data/
+processed_videos.txt
+pending_summaries.txt
+cron.log
+.pytest_cache/

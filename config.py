@@ -39,7 +39,7 @@ class Config:
         transcripts_dir = args.transcripts_dir or os.getenv("TRANSCRIPTS_DIR", os.path.join(data_dir, "transcripts"))
         temp_dir = args.temp_dir or os.getenv("TEMP_DIR", os.path.join(data_dir, "tmp"))
 
-        channels_env = os.getenv("CHANNELS", "@sam_sulek,@TeamRICHEY,@NicksStrengthandPower")
+        channels_env = os.getenv("CHANNELS", "")
         channels = args.channels or _split_csv(channels_env)
 
         return Config(
