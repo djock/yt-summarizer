@@ -29,4 +29,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py /app/
 RUN mkdir -p /data /app/models
 
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "import config, fetch, notify, summarize, state, transcribe" || exit 1
+
 CMD ["python", "summarizer.py"]

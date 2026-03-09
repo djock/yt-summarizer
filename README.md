@@ -27,6 +27,16 @@ Optional variables:
 - `PENDING_FILE` (default: `/data/pending_summaries.txt`)
 - `TRANSCRIPTS_DIR` (default: `/data/transcripts`)
 - `TEMP_DIR` (default: `/data/tmp`)
+- `LOG_LEVEL` (`DEBUG`, `INFO`, `WARNING`, `ERROR`, default: `INFO`)
+
+Retry tuning (all optional):
+- `DOWNLOAD_MAX_RETRIES` (default: `3`)
+- `DOWNLOAD_RETRY_DELAYS` (comma-separated seconds, default: `10,20`)
+- `SUMMARY_MAX_RETRIES` (default: `5`)
+- `SUMMARY_RETRY_DELAYS` (default: `10,30,60,120`)
+- `DISCORD_MAX_RETRIES` (default: `5`)
+- `DISCORD_RETRY_DELAYS` (default: `2,5,10,20`)
+- `PENDING_MAX_RETRIES` (default: `5`)
 
 ## Run with Docker
 Build the image:
@@ -93,11 +103,47 @@ crontab -e
 ```
 
 ## Run without Docker
-Ensure dependencies are installed, then:
+
+### 1. System dependencies
+
+Install `ffmpeg`, `yt-dlp`, and Node.js via your package manager, then build `whisper-cli` from source:
+
+```bash
+git clone --depth 1 https://github.com/ggerganov/whisper.cpp
+cd whisper.cpp
+cmake -B build && cmake --build build -j --config Release
+cp build/bin/whisper-cli /usr/local/bin/whisper-cli   # or any directory on PATH
+```
+
+### 2. Download a Whisper model
+
+```bash
+# From inside the whisper.cpp directory:
+sh ./models/download-ggml-model.sh small
+# Downloads models/ggml-small.bin (~466 MB)
+```
+
+Then tell the app where to find it:
+
+```bash
+export WHISPER_BIN="/usr/local/bin/whisper-cli"
+export WHISPER_MODEL="/path/to/whisper.cpp/models/ggml-small.bin"
+```
+
+Available model sizes (larger = slower but more accurate): `tiny`, `base`, `small` (default), `medium`, `large`.
+
+### 3. Install Python dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run
 
 ```bash
 export DISCORD_WEBHOOK_URL="..."
 export GEMINI_API_KEY="..."
+export CHANNELS="@MyChannel"
 python summarizer.py
 ```
 
