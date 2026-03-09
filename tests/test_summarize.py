@@ -1,16 +1,17 @@
 import os
 import sys
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import requests
 
 from summarize import (
+    OpenAIProvider,
     SummaryProvider,
     SummaryProviderWrapper,
-    OpenAIProvider,
     _build_prompt,
     _chunk_text,
     summarize_transcript,

@@ -1,17 +1,16 @@
 import json
 import os
 import sys
-import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from models import Job, PendingEntry
 from state import (
-    read_archive,
     append_archive,
     load_pending_entries,
-    write_pending_entries,
+    read_archive,
     upsert_pending_entry,
+    write_pending_entries,
 )
 
 

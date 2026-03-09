@@ -1,6 +1,6 @@
 import time
 from dataclasses import dataclass
-from typing import Callable, Iterable, Type
+from typing import Callable, Iterable
 
 
 @dataclass

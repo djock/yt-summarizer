@@ -1,10 +1,11 @@
 import os
 import sys
+
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from retry import RetryPolicy, RetryError, run_with_retry
+from retry import RetryPolicy, run_with_retry
 
 
 class TestRunWithRetry:

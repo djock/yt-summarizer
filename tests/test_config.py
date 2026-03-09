@@ -1,11 +1,12 @@
 import argparse
 import os
+import sys
+
 import pytest
 
-import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from config import Config, _split_csv, _split_ints, parse_args
+from config import Config, _split_csv, _split_ints
 from retry import RetryPolicy
 
 

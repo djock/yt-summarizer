@@ -1,6 +1,5 @@
 import gzip
 import os
-from typing import Tuple
 
 from config import Config
 from subprocess_utils import run_command
