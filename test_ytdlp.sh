@@ -1,0 +1,2 @@
+#!/bin/bash
+docker run --rm --env-file .env -v "$PWD/data:/data" --entrypoint yt-dlp yt-summarizer --no-playlist -f 'bestaudio[ext=webm]/bestaudio/best' -x --audio-format wav --user-agent 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' --postprocessor-args 'ffmpeg:-ar 16000 -ac 1' --no-simulate --print '%(channel)s||%(title)s||%(duration_string)s' -o '/data/tmp/yyiGPfdX5XQ.%(ext)s' 'https://www.youtube.com/watch?v=yyiGPfdX5XQ'

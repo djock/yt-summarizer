@@ -1,34 +1,64 @@
 # Repository Guidelines
 
-## Project Structure & Module Organization
-- `summarizer.py` is the main entry point; it downloads audio, transcribes with Whisper, summarizes with Gemini, and posts to Discord.
-- `Dockerfile` builds the runtime image and compiles `whisper.cpp`.
-- `processed_videos.txt` is the local archive of processed YouTube IDs; the container expects it at `/data/processed_videos.txt`.
-- `.env` holds required secrets (`DISCORD_WEBHOOK_URL`, `GEMINI_API_KEY`); see `.env.example`.
+## Project Structure
+
+```
+core/        — Config dataclass, Job/PendingEntry models, state file I/O (archive, pending queue)
+pipeline/    — fetch.py (yt-dlp download), transcribe.py (Whisper), summarize.py (LLM providers), notify.py (Discord)
+utils/       — retry.py (RetryPolicy, run_with_retry), subprocess_utils.py (run_command, CommandError)
+summarizer.py — entry point; orchestrates the full pipeline
+tests/       — pytest test suite (114+ tests)
+```
 
 ## Build, Test, and Development Commands
-- Build the container image:
-  - `docker build -t yt-summarizer .`
-- Run locally with a persistent archive:
-  - `docker run --rm --env-file .env -v "$PWD/processed_videos.txt:/data/processed_videos.txt" yt-summarizer`
-- Run without Docker (requires `ffmpeg`, `yt-dlp`, `whisper-cli`, and Python deps):
-  - `python summarizer.py`
 
-## Coding Style & Naming Conventions
-- Language: Python 3.11.
-- Indentation: 4 spaces.
-- Naming: `snake_case` for functions/variables, `UPPER_SNAKE_CASE` for constants (see `WEBHOOK_URL`, `GEMINI_API_KEY`).
-- Keep logs in the `log()` helper for consistent output.
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/ -v --cov
+
+# Lint
+ruff check .
+
+# Type check (covers all packages)
+mypy core pipeline utils summarizer.py
+
+# All checks at once
+make check
+
+# Build Docker image
+docker build -t yt-summarizer .
+
+# Run with Docker
+docker run --rm --env-file .env -v "$PWD/data:/data" yt-summarizer
+```
+
+## Key Conventions
+
+- Language: Python 3.11
+- Indentation: 4 spaces
+- Naming: `snake_case` for functions/variables, `UPPER_SNAKE_CASE` for constants
+- Logging: use `logging.getLogger(__name__)` — no bare `print()`
+- All new code must pass `ruff check .` and `mypy`
 
 ## Testing Guidelines
-- No automated tests are currently present.
-- If adding tests, prefer `pytest` and place them under a `tests/` directory with `test_*.py` naming.
 
-## Commit & Pull Request Guidelines
-- Git history only includes `Initial commit`, so no established convention yet.
-- Use short, imperative commit subjects (e.g., `Add retry for Discord webhook`).
-- PRs should explain the user impact, list configuration changes, and include sample logs or screenshots if output changes.
+- Tests live in `tests/test_*.py` using pytest
+- Use `unittest.mock.patch` to mock external calls (yt-dlp, whisper, Discord, LLM APIs)
+- A `conftest.py` handles `sys.path` so tests can import `core`, `pipeline`, and `utils` without installing the package
+- CI enforces a coverage threshold (`--cov-fail-under=70`)
 
-## Security & Configuration Tips
-- Secrets are provided via `.env` or environment variables; do not commit `.env`.
-- Treat `/data/processed_videos.txt` as durable state; avoid deleting it unless you intend to reprocess channels.
+## Configuration
+
+All settings are loaded from environment variables in `core/config.py`. Required variables:
+- `DISCORD_WEBHOOK_URL`
+- `CHANNELS` (comma-separated, e.g. `@MyChannel`)
+- `GEMINI_API_KEY` or `OPENAI_API_KEY` depending on `SUMMARY_PROVIDER`
+
+## Security Notes
+
+- Secrets are loaded from `.env` or environment variables — never commit `.env`
+- State files live under `DATA_DIR` (default `/data`) — treat as durable state
+- See `SECURITY.md` for vulnerability reporting

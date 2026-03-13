@@ -1,0 +1,69 @@
+[project]
+name = "youtube-summary-discord"
+version = "1.1.0"
+description = "Downloads YouTube audio, transcribes with Whisper, summarizes with an LLM, and posts to Discord."
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "youtube-summary-discord contributors" }]
+keywords = ["youtube", "discord", "whisper", "summarizer", "llm"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Sound/Audio",
+    "Topic :: Communications :: Chat",
+]
+dependencies = [
+    "yt-dlp==2025.3.31",
+    "google-genai==1.10.0",
+    "requests==2.32.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/djock/youtube-summary-discord"
+Repository = "https://github.com/djock/youtube-summary-discord"
+"Bug Tracker" = "https://github.com/djock/youtube-summary-discord/issues"
+Changelog = "https://github.com/djock/youtube-summary-discord/blob/main/CHANGELOG.md"
+
+[project.scripts]
+yt-summarizer = "summarizer:main"
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.5",
+    "pytest-mock==3.14.0",
+    "pytest-cov==6.1.0",
+    "requests-mock==1.12.1",
+    "types-requests==2.32.0.20250328",
+    "ruff>=0.4",
+    "mypy>=1.10",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--tb=short"
+
+[tool.coverage.run]
+source = ["core", "pipeline", "utils", "summarizer"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["requests", "requests.*", "google.*"]
+ignore_missing_imports = true
