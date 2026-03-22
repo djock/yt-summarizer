@@ -9,6 +9,7 @@ def _make_config(tmp_path):
     cfg = MagicMock()
     cfg.whisper_bin = "./whisper-cli"
     cfg.whisper_model = "models/ggml-small.bin"
+    cfg.whisper_threads = 4
     cfg.whisper_timeout_s = 60
     cfg.transcripts_dir = str(tmp_path / "transcripts")
     return cfg
@@ -113,4 +114,6 @@ class TestTranscribeAudio:
         assert cfg.whisper_bin in args
         assert cfg.whisper_model in args
         assert str(audio) in args
+        assert "-t" in args
+        assert str(cfg.whisper_threads) in args
         assert mock_run.call_args[1]["timeout_s"] == cfg.whisper_timeout_s

@@ -114,10 +114,12 @@ class TestConfigFromEnv:
     def test_timeout_defaults(self, monkeypatch):
         monkeypatch.delenv("YT_DLP_TIMEOUT_S", raising=False)
         monkeypatch.delenv("WHISPER_TIMEOUT_S", raising=False)
+        monkeypatch.delenv("WHISPER_THREADS", raising=False)
         monkeypatch.delenv("HTTP_TIMEOUT_S", raising=False)
         cfg = Config.from_env(_empty_args())
         assert cfg.yt_dlp_timeout_s == 600
         assert cfg.whisper_timeout_s == 1800
+        assert cfg.whisper_threads == 4
         assert cfg.http_timeout_s == 60
 
     def test_timeout_from_env(self, monkeypatch):
@@ -210,6 +212,7 @@ class TestRetryPolicies:
             temp_dir="/data/tmp",
             whisper_bin="./w",
             whisper_model="m.bin",
+            whisper_threads=4,
             discord_chunk_size=1900,
             summary_bullet_limit=8,
             yt_dlp_timeout_s=600,
@@ -264,6 +267,7 @@ class TestConfigValidate:
             temp_dir="/data/tmp",
             whisper_bin="./w",
             whisper_model="m.bin",
+            whisper_threads=4,
             discord_chunk_size=1900,
             summary_bullet_limit=8,
             yt_dlp_timeout_s=600,

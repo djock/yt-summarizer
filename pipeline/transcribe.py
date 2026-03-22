@@ -22,6 +22,8 @@ def transcribe_audio(audio_path: str, config: Config) -> str:
         config.whisper_model,
         "-f",
         audio_path,
+        "-t",
+        str(config.whisper_threads),
         "-otxt",
     ]
     run_command(
