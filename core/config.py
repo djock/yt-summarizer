@@ -110,7 +110,7 @@ class Config:
             transcripts_dir=transcripts_dir,
             temp_dir=temp_dir,
             whisper_bin=os.getenv("WHISPER_BIN", "./whisper-cli"),
-            whisper_model=os.getenv("WHISPER_MODEL", "models/ggml-small.bin"),
+            whisper_model=os.getenv("WHISPER_MODEL", "models/ggml-tiny.bin"),
             whisper_threads=_getenv_int("WHISPER_THREADS", "4"),
             discord_chunk_size=_getenv_int("DISCORD_CHUNK_SIZE", "1900"),
             summary_bullet_limit=_getenv_int("SUMMARY_BULLET_LIMIT", "8"),

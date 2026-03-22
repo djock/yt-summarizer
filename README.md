@@ -51,7 +51,7 @@ cp .env.example .env
 | `TEMP_DIR` | `/data/tmp` | Temporary directory for audio files |
 | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING`, or `ERROR` |
 | `WHISPER_BIN` | `./whisper-cli` | Path to `whisper-cli` binary |
-| `WHISPER_MODEL` | `models/ggml-small.bin` | Path to Whisper GGML model |
+| `WHISPER_MODEL` | `models/ggml-tiny.bin` | Path to Whisper GGML model |
 | `DISCORD_CHUNK_SIZE` | `1900` | Max characters per Discord message chunk |
 | `SUMMARY_BULLET_LIMIT` | `8` | Max bullet points in a summary |
 | `YT_DLP_TIMEOUT_S` | `600` | Timeout for yt-dlp download (seconds) |
@@ -134,15 +134,15 @@ find build \( -name 'libwhisper.so*' -o -name 'libggml*.so*' \) -exec cp {} /usr
 
 ```bash
 # From inside the whisper.cpp directory:
-sh ./models/download-ggml-model.sh small
-# Downloads models/ggml-small.bin (~466 MB)
+sh ./models/download-ggml-model.sh tiny
+# Downloads models/ggml-tiny.bin (~75 MB)
 ```
 
 Then configure the paths:
 
 ```bash
 export WHISPER_BIN="/usr/local/bin/whisper-cli"
-export WHISPER_MODEL="/path/to/whisper.cpp/models/ggml-small.bin"
+export WHISPER_MODEL="/path/to/whisper.cpp/models/ggml-tiny.bin"
 export LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
 ```
 
@@ -177,7 +177,7 @@ python summarizer.py
 
 **`libwhisper.so.1` or `libggml.so.0: cannot open shared object file`** — Install all Whisper runtime libraries (`libwhisper.so*` and `libggml*.so*`) alongside the binary or into a loader path such as `/usr/local/lib`, then export `LD_LIBRARY_PATH` if needed.
 
-**`models/ggml-small.bin: no such file`** — Set `WHISPER_MODEL` to the full path of the downloaded model file.
+**`models/ggml-tiny.bin: no such file`** — Set `WHISPER_MODEL` to the full path of the downloaded model file.
 
 **yt-dlp fails or hangs** — YouTube anti-bot measures change frequently. Update yt-dlp (`pip install -U yt-dlp`) and ensure Node.js is installed (required for JS player extraction).
 

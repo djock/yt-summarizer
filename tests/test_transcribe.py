@@ -8,7 +8,7 @@ from pipeline.transcribe import _build_whisper_env, load_transcript, save_transc
 def _make_config(tmp_path):
     cfg = MagicMock()
     cfg.whisper_bin = "./whisper-cli"
-    cfg.whisper_model = "models/ggml-small.bin"
+    cfg.whisper_model = "models/ggml-tiny.bin"
     cfg.whisper_threads = 4
     cfg.whisper_timeout_s = 60
     cfg.transcripts_dir = str(tmp_path / "transcripts")
