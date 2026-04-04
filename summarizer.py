@@ -154,6 +154,30 @@ def process_video(config: Config, provider, video_id: str) -> bool:
             return False
 
 
+def process_video_list(config: Config, provider) -> None:
+    assert config.video_ids_file is not None
+    with open(config.video_ids_file) as f:
+        video_ids = [line.strip() for line in f if line.strip() and not line.strip().startswith("#")]
+
+    if not video_ids:
+        logger.warning("No video IDs found in %s", config.video_ids_file)
+        return
+
+    logger.info("Processing %d video(s) from %s", len(video_ids), config.video_ids_file)
+    processed = set(read_archive(config.archive_file))
+
+    for video_id in video_ids:
+        if not config.force and video_id in processed:
+            logger.info("Video %s already in archive, skipping (use --force to reprocess).", video_id)
+            continue
+        processed_ok = process_video(config, provider, video_id)
+        if processed_ok:
+            append_archive(config.archive_file, video_id)
+            processed.add(video_id)
+        else:
+            logger.warning("Not adding %s to archive because processing failed.", video_id)
+
+
 def main() -> None:
     args = parse_args()
     config = Config.from_env(args)
@@ -165,6 +189,10 @@ def main() -> None:
 
     logger.info("Checking for pending summaries...")
     process_pending_summaries(config, provider)
+
+    if config.video_ids_file:
+        process_video_list(config, provider)
+        return
 
     processed = set(read_archive(config.archive_file))
 
