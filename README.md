@@ -79,7 +79,7 @@ Build the image:
 docker build -t yt-summarizer .
 ```
 
-Run once:
+**Channel mode** — run once:
 
 ```bash
 docker run --rm \
@@ -88,7 +88,7 @@ docker run --rm \
   yt-summarizer
 ```
 
-Run with auto-restart on reboot:
+**Channel mode** — run with auto-restart on reboot:
 
 ```bash
 docker run -d \
@@ -97,6 +97,28 @@ docker run -d \
   -v "$PWD/data:/data" \
   --restart unless-stopped \
   yt-summarizer
+```
+
+**List mode** — summarize a specific set of video IDs in order:
+
+```bash
+docker run --rm \
+  --env-file .env \
+  -v "$PWD/data:/data" \
+  -v "$PWD/ids.txt:/ids.txt" \
+  yt-summarizer \
+  --video-ids-file /ids.txt
+```
+
+Add `--force` to re-summarize videos already in the archive:
+
+```bash
+docker run --rm \
+  --env-file .env \
+  -v "$PWD/data:/data" \
+  -v "$PWD/ids.txt:/ids.txt" \
+  yt-summarizer \
+  --video-ids-file /ids.txt --force
 ```
 
 ## Run with Docker Compose
