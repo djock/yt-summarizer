@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 
-Monitors YouTube channels, transcribes new videos with Whisper, summarizes with an LLM, and posts the summary to a Discord channel via webhook.
+Monitors YouTube channels, transcribes new videos with Whisper, summarizes with an LLM, and posts the summary to a Discord channel via webhook. Also supports a one-shot list mode to summarize a specific set of video IDs in order.
 
 ## How it works
 
@@ -16,7 +16,9 @@ Monitors YouTube channels, transcribes new videos with Whisper, summarizes with 
 fetch (yt-dlp) → transcribe (whisper.cpp) → summarize (Gemini / OpenAI) → notify (Discord webhook)
 ```
 
-Each run checks configured channels for new videos, skipping any already in the archive. If a summary fails to send, the job is queued in a pending file and retried on the next run.
+**Channel mode (default):** Each run checks configured channels for new videos, skipping any already in the archive. If a summary fails to send, the job is queued in a pending file and retried on the next run.
+
+**List mode:** Pass a file of video IDs and the summarizer processes them in order, skipping any already in the archive (override with `--force`).
 
 ## Requirements
 
@@ -36,7 +38,7 @@ cp .env.example .env
 | `DISCORD_WEBHOOK_URL` | Discord incoming webhook URL |
 | `GEMINI_API_KEY` | Required when `SUMMARY_PROVIDER=gemini` |
 | `OPENAI_API_KEY` | Required when `SUMMARY_PROVIDER=openai` |
-| `CHANNELS` | Comma-separated list of channel handles, e.g. `@MyChannel,@AnotherChannel` |
+| `CHANNELS` | Comma-separated list of channel handles, e.g. `@MyChannel,@AnotherChannel` (not required when using `--video-ids-file`) |
 
 **Optional:**
 | Variable | Default | Description |
@@ -156,6 +158,8 @@ pip install -r requirements.txt
 
 ### 4. Run
 
+**Channel mode** — check configured channels for new videos:
+
 ```bash
 export DISCORD_WEBHOOK_URL="..."
 export GEMINI_API_KEY="..."
@@ -163,11 +167,41 @@ export CHANNELS="@MyChannel"
 python summarizer.py
 ```
 
+**List mode** — summarize a specific set of video IDs in order:
+
+```bash
+# ids.txt: one video ID per line, blank lines and # comments are ignored
+cat ids.txt
+# dQw4w9WgXcQ
+# abc123xyz
+
+python summarizer.py --video-ids-file ids.txt
+
+# Re-summarize even if already in the archive:
+python summarizer.py --video-ids-file ids.txt --force
+```
+
+## CLI reference
+
+```
+usage: summarizer.py [-h] [--provider {gemini,openai}] [--channels CH [CH ...]]
+                     [--video-ids-file PATH] [--force]
+                     [--data-dir DIR] [--archive-file FILE] ...
+
+optional arguments:
+  --provider            Summary provider (gemini|openai)
+  --channels            One or more channel handles (overrides CHANNELS env var)
+  --video-ids-file      Path to a file with one YouTube video ID per line;
+                        activates list mode (CHANNELS not required)
+  --force               Re-summarize videos already in the archive
+  --data-dir            Base data directory (overrides DATA_DIR env var)
+```
+
 ## State files
 
 | File | Description |
 |---|---|
-| `processed_videos.txt` | Archive of processed video IDs (one per line). Delete an ID to reprocess. |
+| `processed_videos.txt` | Archive of processed video IDs (one per line). Delete an ID to reprocess, or use `--force` in list mode. |
 | `pending_summaries.txt` | JSONL queue of jobs that failed Discord delivery and are awaiting retry. |
 | `transcripts/*.txt.gz` | Gzipped transcripts, kept for pending-summary retries. |
 

@@ -15,6 +15,8 @@ def _empty_args(**kwargs) -> argparse.Namespace:
         pending_file=None,
         transcripts_dir=None,
         temp_dir=None,
+        video_ids_file=None,
+        force=False,
     )
     defaults.update(kwargs)
     return argparse.Namespace(**defaults)
@@ -317,3 +319,16 @@ class TestConfigValidate:
 
     def test_valid_openai_config_passes(self):
         self._make_cfg(summary_provider="openai", openai_api_key="sk-test").validate()
+
+    def test_video_ids_file_allows_empty_channels(self, tmp_path):
+        ids_file = tmp_path / "ids.txt"
+        ids_file.write_text("abc123\n")
+        self._make_cfg(channels=[], video_ids_file=str(ids_file)).validate()  # should not raise
+
+    def test_video_ids_file_nonexistent_raises(self):
+        with pytest.raises(RuntimeError, match="does not exist"):
+            self._make_cfg(video_ids_file="/nonexistent/ids.txt").validate()
+
+    def test_no_channels_and_no_video_ids_file_raises(self):
+        with pytest.raises(RuntimeError, match="CHANNELS"):
+            self._make_cfg(channels=[]).validate()

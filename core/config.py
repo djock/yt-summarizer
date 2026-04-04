@@ -60,6 +60,8 @@ class Config:
     discord_max_retries: int
     discord_retry_delays: List[int]
     pending_max_retries: int
+    video_ids_file: str | None = None
+    force: bool = False
 
     def download_retry_policy(self) -> RetryPolicy:
         return RetryPolicy(max_attempts=self.download_max_retries, delays_s=self.download_retry_delays)
@@ -80,7 +82,10 @@ class Config:
             errors.append("GEMINI_API_KEY is required when SUMMARY_PROVIDER=gemini")
         elif self.summary_provider == "openai" and not self.openai_api_key:
             errors.append("OPENAI_API_KEY is required when SUMMARY_PROVIDER=openai")
-        if not self.channels:
+        if self.video_ids_file is not None:
+            if not os.path.isfile(self.video_ids_file):
+                errors.append(f"--video-ids-file path does not exist: {self.video_ids_file!r}")
+        elif not self.channels:
             errors.append("CHANNELS must be set to at least one channel handle (e.g. CHANNELS=@MyChannel)")
         if errors:
             raise RuntimeError("Configuration errors:\n" + "\n".join(f"  - {e}" for e in errors))
@@ -98,6 +103,8 @@ class Config:
 
         return Config(
             webhook_url=os.getenv("DISCORD_WEBHOOK_URL", ""),
+            video_ids_file=args.video_ids_file,
+            force=args.force,
             summary_provider=(args.provider or os.getenv("SUMMARY_PROVIDER", "gemini")).strip().lower(),
             gemini_api_key=os.getenv("GEMINI_API_KEY"),
             gemini_model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite"),
@@ -132,6 +139,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="YouTube summarizer")
     parser.add_argument("--provider", help="Summary provider (gemini|openai)")
     parser.add_argument("--channels", nargs="+", help="List of channel handles")
+    parser.add_argument("--video-ids-file", help="Path to a file with one YouTube video ID per line")
+    parser.add_argument("--force", action="store_true", help="Re-summarize videos already in the archive")
     parser.add_argument("--data-dir", help="Base data directory")
     parser.add_argument("--archive-file", help="Path to processed_videos.txt")
     parser.add_argument("--pending-file", help="Path to pending summaries file")

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 from core.models import Job, PendingEntry
 from core.state import write_pending_entries
-from summarizer import ensure_files, process_pending_summaries, summarize_and_send
+from summarizer import ensure_files, process_pending_summaries, process_video_list, summarize_and_send
 
 
 def _make_job(video_id="vid1", transcript_path=None):
@@ -164,3 +164,108 @@ class TestProcessPendingSummaries:
 
         mock_send.assert_called_once()
         assert "failed" in mock_send.call_args[0][1].lower()
+
+
+class TestProcessVideoList:
+    def _make_config(self, tmp_path, ids_file, force=False):
+        cfg = _make_config(tmp_path)
+        cfg.video_ids_file = str(ids_file)
+        cfg.force = force
+        cfg.archive_file = str(tmp_path / "data" / "archive.txt")
+        return cfg
+
+    def test_processes_ids_in_order(self, tmp_path):
+        ids_file = tmp_path / "ids.txt"
+        ids_file.write_text("id1\nid2\nid3\n")
+        cfg = self._make_config(tmp_path, ids_file)
+        ensure_files(cfg)
+
+        call_order = []
+        def fake_process(config, provider, video_id):
+            call_order.append(video_id)
+            return True
+
+        with patch("summarizer.process_video", side_effect=fake_process), \
+             patch("summarizer.append_archive"):
+            process_video_list(cfg, MagicMock())
+
+        assert call_order == ["id1", "id2", "id3"]
+
+    def test_skips_archived_ids_by_default(self, tmp_path):
+        ids_file = tmp_path / "ids.txt"
+        ids_file.write_text("id1\nid2\n")
+        cfg = self._make_config(tmp_path, ids_file, force=False)
+        ensure_files(cfg)
+        with open(cfg.archive_file, "w") as f:
+            f.write("id1\n")
+
+        with patch("summarizer.process_video", return_value=True) as mock_proc, \
+             patch("summarizer.append_archive"):
+            process_video_list(cfg, MagicMock())
+
+        processed_ids = [call.args[2] for call in mock_proc.call_args_list]
+        assert "id1" not in processed_ids
+        assert "id2" in processed_ids
+
+    def test_force_reprocesses_archived_ids(self, tmp_path):
+        ids_file = tmp_path / "ids.txt"
+        ids_file.write_text("id1\nid2\n")
+        cfg = self._make_config(tmp_path, ids_file, force=True)
+        ensure_files(cfg)
+        with open(cfg.archive_file, "w") as f:
+            f.write("id1\n")
+
+        with patch("summarizer.process_video", return_value=True) as mock_proc, \
+             patch("summarizer.append_archive"):
+            process_video_list(cfg, MagicMock())
+
+        processed_ids = [call.args[2] for call in mock_proc.call_args_list]
+        assert processed_ids == ["id1", "id2"]
+
+    def test_archives_successful_ids(self, tmp_path):
+        ids_file = tmp_path / "ids.txt"
+        ids_file.write_text("id1\n")
+        cfg = self._make_config(tmp_path, ids_file)
+        ensure_files(cfg)
+
+        with patch("summarizer.process_video", return_value=True), \
+             patch("summarizer.append_archive") as mock_archive:
+            process_video_list(cfg, MagicMock())
+
+        mock_archive.assert_called_once_with(cfg.archive_file, "id1")
+
+    def test_does_not_archive_failed_ids(self, tmp_path):
+        ids_file = tmp_path / "ids.txt"
+        ids_file.write_text("id1\n")
+        cfg = self._make_config(tmp_path, ids_file)
+        ensure_files(cfg)
+
+        with patch("summarizer.process_video", return_value=False), \
+             patch("summarizer.append_archive") as mock_archive:
+            process_video_list(cfg, MagicMock())
+
+        mock_archive.assert_not_called()
+
+    def test_skips_blank_lines_and_comments(self, tmp_path):
+        ids_file = tmp_path / "ids.txt"
+        ids_file.write_text("id1\n\n# a comment\nid2\n")
+        cfg = self._make_config(tmp_path, ids_file)
+        ensure_files(cfg)
+
+        with patch("summarizer.process_video", return_value=True) as mock_proc, \
+             patch("summarizer.append_archive"):
+            process_video_list(cfg, MagicMock())
+
+        processed_ids = [call.args[2] for call in mock_proc.call_args_list]
+        assert processed_ids == ["id1", "id2"]
+
+    def test_empty_file_does_nothing(self, tmp_path):
+        ids_file = tmp_path / "ids.txt"
+        ids_file.write_text("")
+        cfg = self._make_config(tmp_path, ids_file)
+        ensure_files(cfg)
+
+        with patch("summarizer.process_video") as mock_proc:
+            process_video_list(cfg, MagicMock())
+
+        mock_proc.assert_not_called()
